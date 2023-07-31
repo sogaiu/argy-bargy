@@ -3,15 +3,13 @@
 
 (import ../argy-bargy)
 
-
 (defmacro capture [& body]
-  (with-syms [out err res]
+  (with-syms [res]
     ~(do
-       (def ,out @"")
-       (def ,err @"")
-       (with-dyns [:out ,out :err ,err]
-         (def ,res (do ,;body))
-         {:res ,res :out (string ,out) :err (string ,err)}))))
+       (buffer/clear argy-bargy/out)
+       (buffer/clear argy-bargy/err)
+       (def ,res (do ,;body))
+       {:res ,res :out (string argy-bargy/out) :err (string argy-bargy/err)})))
 
 
 (deftest parse-with-option-flag

@@ -5,6 +5,9 @@
 (var pad-right "Number of columns to pad argument descriptions from the right" 0)
 (var hr "String to use to insert line breaks between argument descriptions" "---")
 
+(def out @"")
+(def err @"")
+
 (var- cols nil)
 (var- command nil)
 (var- helped? false)
@@ -244,8 +247,8 @@
   [& msg]
   (unless (or errored? helped?)
     (set errored? true)
-    (eprint command ": " ;msg)
-    (eprint "Try '" command " --help' for more information.")))
+    (xprint err command ": " ;msg)
+    (xprint err "Try '" command " --help' for more information.")))
 
 
 (defn- usage-parameters
@@ -267,14 +270,14 @@
     (set pad (max (+ pad-inset (length usage-prefix)) pad)))
 
   (unless (empty? usages)
-    (print)
+    (xprint out)
     (if (info :params-header)
-      (print (info :params-header))
-      (print "Parameters:"))
-    (print)
+      (xprint out (info :params-header))
+      (xprint out "Parameters:"))
+    (xprint out)
     (each [prefix help] usages
       (def startp (- pad (length prefix)))
-      (print prefix (indent-str help (length prefix) startp pad (- cols pad-right))))))
+      (xprint out prefix (indent-str help (length prefix) startp pad (- cols pad-right))))))
 
 
 (defn- usage-options
@@ -305,17 +308,17 @@
         (set pad (max (+ pad-inset (length usage-prefix)) pad)))))
 
   (unless (empty? usages)
-    (print)
+    (xprint out)
     (if (info :opts-header)
-      (print (info :opts-header))
-      (print "Options:"))
-    (print)
+      (xprint out (info :opts-header))
+      (xprint out "Options:"))
+    (xprint out)
     (each [prefix help] usages
       (if (nil? help)
-        (print)
+        (xprint out)
         (do
           (def startp (- pad (length prefix)))
-          (print prefix (indent-str help (length prefix) startp pad (- cols pad-right))))))))
+          (xprint out prefix (indent-str help (length prefix) startp pad (- cols pad-right))))))))
 
 
 (defn- usage-subcommands
@@ -336,19 +339,19 @@
         (set pad (max (+ pad-inset (length usage-prefix)) pad)))))
 
   (unless (empty? usages)
-    (print)
+    (xprint out)
     (if (info :subs-header)
-      (print (info :subs-header))
-      (print "Subcommands:"))
-    (print)
+      (xprint out (info :subs-header))
+      (xprint out "Subcommands:"))
+    (xprint out)
     (each [prefix help] usages
       (if (nil? help)
-        (print)
+        (xprint out)
         (do
           (def startp (- pad (length prefix)))
-          (print prefix (indent-str help (length prefix) startp pad (- cols pad-right))))))
-    (print)
-    (print "For more information on each subcommand, type '" command " help <subcommand>'.")))
+          (xprint out prefix (indent-str help (length prefix) startp pad (- cols pad-right))))))
+    (xprint out)
+    (xprint out "For more information on each subcommand, type '" command " help <subcommand>'.")))
 
 
 (defn- usage-example
@@ -356,7 +359,8 @@
   Prints a usage example
   ```
   [orules prules subconfigs]
-  (print
+  (xprint
+    out
     (indent-str
       (string "usage: "
               command
@@ -401,12 +405,12 @@
 
     (if (info :usages)
       (each example (info :usages)
-        (print example))
+        (xprint out example))
       (usage-example orules prules subconfigs))
 
     (when (info :about)
-      (print)
-      (print (indent-str (info :about) 0)))
+      (xprint out)
+      (xprint out (indent-str (info :about) 0)))
 
     (unless (empty? prules)
       (usage-parameters info prules))
@@ -417,8 +421,8 @@
       (usage-subcommands info subconfigs))
 
     (when (info :rider)
-      (print)
-      (print (indent-str (info :rider) 0)))))
+      (xprint out)
+      (xprint out (indent-str (info :rider) 0)))))
 
 
 # Processing functions
