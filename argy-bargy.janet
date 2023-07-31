@@ -244,7 +244,7 @@
   [& msg]
   (unless (or errored? helped?)
     (set errored? true)
-    (def err (dyn :ab-err))
+    (def err (dyn :ab-err @""))
     (xprint err command ": " ;msg)
     (xprint err "Try '" command " --help' for more information.")))
 
@@ -268,7 +268,7 @@
     (set pad (max (+ pad-inset (length usage-prefix)) pad)))
 
   (unless (empty? usages)
-    (def out (dyn :ab-out))
+    (def out (dyn :ab-out @""))
     (xprint out)
     (if (info :params-header)
       (xprint out (info :params-header))
@@ -307,7 +307,7 @@
         (set pad (max (+ pad-inset (length usage-prefix)) pad)))))
 
   (unless (empty? usages)
-    (def out (dyn :ab-out))
+    (def out (dyn :ab-out @""))
     (xprint out)
     (if (info :opts-header)
       (xprint out (info :opts-header))
@@ -342,7 +342,7 @@
         (set pad (max (+ pad-inset (length usage-prefix)) pad)))))
 
   (unless (empty? usages)
-    (def out (dyn :ab-out))
+    (def out (dyn :ab-out @""))
     (xprint out)
     (if (info :subs-header)
       (xprint out (info :subs-header))
@@ -367,7 +367,7 @@
   Prints a usage example
   ```
   [orules prules subconfigs]
-  (def out (dyn :ab-out))
+  (def out (dyn :ab-out @""))
   (xprint
     out
     (indent-str
@@ -410,7 +410,7 @@
   (def subconfigs (conform-subconfigs (get config :subs [])))
 
   (unless (or errored? helped?)
-    (def out (dyn :ab-out))
+    (def out (dyn :ab-out @""))
     (set helped? true)
 
     (if (info :usages)
