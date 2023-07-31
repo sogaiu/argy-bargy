@@ -5,9 +5,6 @@
 (var pad-right "Number of columns to pad argument descriptions from the right" 0)
 (var hr "String to use to insert line breaks between argument descriptions" "---")
 
-(def out @"")
-(def err @"")
-
 (var- cols nil)
 (var- command nil)
 (var- helped? false)
@@ -247,6 +244,7 @@
   [& msg]
   (unless (or errored? helped?)
     (set errored? true)
+    (def err (dyn :ab-err))
     (xprint err command ": " ;msg)
     (xprint err "Try '" command " --help' for more information.")))
 
@@ -270,6 +268,7 @@
     (set pad (max (+ pad-inset (length usage-prefix)) pad)))
 
   (unless (empty? usages)
+    (def out (dyn :ab-out))
     (xprint out)
     (if (info :params-header)
       (xprint out (info :params-header))
@@ -308,6 +307,7 @@
         (set pad (max (+ pad-inset (length usage-prefix)) pad)))))
 
   (unless (empty? usages)
+    (def out (dyn :ab-out))
     (xprint out)
     (if (info :opts-header)
       (xprint out (info :opts-header))
@@ -318,7 +318,10 @@
         (xprint out)
         (do
           (def startp (- pad (length prefix)))
-          (xprint out prefix (indent-str help (length prefix) startp pad (- cols pad-right))))))))
+          (xprint out
+                  prefix
+                  (indent-str help
+                              (length prefix) startp pad (- cols pad-right))))))))
 
 
 (defn- usage-subcommands
@@ -339,6 +342,7 @@
         (set pad (max (+ pad-inset (length usage-prefix)) pad)))))
 
   (unless (empty? usages)
+    (def out (dyn :ab-out))
     (xprint out)
     (if (info :subs-header)
       (xprint out (info :subs-header))
@@ -349,9 +353,13 @@
         (xprint out)
         (do
           (def startp (- pad (length prefix)))
-          (xprint out prefix (indent-str help (length prefix) startp pad (- cols pad-right))))))
+          (xprint out
+                  prefix (indent-str help
+                                     (length prefix) startp pad (- cols pad-right))))))
     (xprint out)
-    (xprint out "For more information on each subcommand, type '" command " help <subcommand>'.")))
+    (xprint out
+            "For more information on each subcommand, type '" command
+            " help <subcommand>'.")))
 
 
 (defn- usage-example
@@ -359,6 +367,7 @@
   Prints a usage example
   ```
   [orules prules subconfigs]
+  (def out (dyn :ab-out))
   (xprint
     out
     (indent-str
@@ -401,6 +410,7 @@
   (def subconfigs (conform-subconfigs (get config :subs [])))
 
   (unless (or errored? helped?)
+    (def out (dyn :ab-out))
     (set helped? true)
 
     (if (info :usages)
@@ -621,7 +631,11 @@
   `:error?` and `:help?` keys that can be used to determine if the parsing
   completed successfully.
   ```
-  [name config]
+  [name config &opt out err]
+  (default out (dyn :ab-out @""))
+  (default err (dyn :ab-err @""))
+  (setdyn :ab-out out)
+  (setdyn :ab-err err)
   (set cols (get-cols))
   (set command name)
   (set helped? nil)
@@ -631,7 +645,9 @@
   (def subconfigs (conform-subconfigs (get config :subs [])))
   (def args (conform-args (dyn :args)))
 
-  (def result @{:cmd command :opts @{} :params (when (empty? subconfigs) @{})})
+  (def result
+    @{:cmd command :opts @{} :params (when (empty? subconfigs) @{})
+      :out out :err err})
   (def params @[])
 
 
@@ -672,7 +688,12 @@
                  (if subconfig
                    (if (not help?)
                      (with-dyns [:args (array/slice args i)]
-                       (def subresult (parse-args (string command " " subcommand) subconfig))
+                       (def subresult
+                         (parse-args (string command " " subcommand) subconfig
+                                     out err))
+                       # only want :out and :err in outermost result
+                       (put subresult :out nil)
+                       (put subresult :err nil)
                        (unless (or (subresult :error?) (subresult :help?))
                          (put subresult :cmd subcommand)
                          (put result :sub subresult)
