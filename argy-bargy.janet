@@ -1,3 +1,22 @@
+(def stack @[])
+
+(def debug-fname
+  (do
+    (def name
+      (string "/tmp/ab-"
+              (os/strftime "%Y-%m-%d_%H_%M_%S" (os/time) :local)
+              ".txt"))
+    (eprint name)
+    name))
+
+(defn ppf
+  [fmt & args]
+  (spit debug-fname
+        (string (string/repeat " " (* 2 (length stack)))
+                (string/format fmt ;args)
+                "\n")
+        :a))
+
 # Global values
 
 (var max-width "Maximum number of columns to use for usage messages" 120)
@@ -618,76 +637,123 @@
   completed successfully.
   ```
   [name config]
+  (when (empty? stack)
+    (ppf "\nstart\n-----"))
+  (array/push stack true)
+  (ppf "[input]: (dyn :args): %p" (dyn :args))
+  (ppf "[input]: name: %p" name)
+  (ppf "[input]: config: %p" config)
   (set cols (get-cols))
+  (ppf "[input]: cols: %p" cols)
   (set command name)
   (set helped? nil)
   (set errored? nil)
 
   (def [orules prules] (conform-rules (get config :rules [])))
+  (ppf "orules: %p" orules)
+  (ppf "prules: %p" prules)
   (def subconfigs (conform-subconfigs (get config :subs [])))
+  (ppf "subconfigs: %p" subconfigs)
   (def args (conform-args (dyn :args)))
+  (ppf "args: %p" args)
 
   (def result @{:cmd command :opts @{} :params (when (empty? subconfigs) @{})})
+  (ppf "result (init): %p" result)
   (def params @[])
-
+  (ppf "params (init): %p" params)
 
   (def num-args (length args))
+  (ppf "num-args: %d" num-args)
   (var i 1)
   (while (< i num-args)
     (def arg (get args i))
+    (ppf "i: %d arg: %p params: %p" i arg params)
     (set i (cond
              (or (= "--help" arg) (= "-h" arg))
-             (usage config)
+             (do
+               (ppf "> calling usage")
+               (usage config))
 
              (= "--" arg)
              (do
+               (ppf "> found --")
                (array/concat params (array/slice args (inc i)))
                (break))
 
              (string/has-prefix? "--" arg)
-             (consume-option result orules args i)
+             (do
+               (ppf "> calling consume-option (not short)")
+               (consume-option result orules args i))
 
              (= "-" arg)
              (do
+               (ppf "> found -")
                (array/push params arg)
                (inc i))
 
              (string/has-prefix? "-" arg)
-             (consume-option result orules args i true)
+             (do
+               (ppf "> calling consume-option (short)")
+               (ppf "result: %p" result)
+               (ppf "i: %d" i)
+               (consume-option result orules args i true))
 
              (empty? subconfigs)
              (do
+               (ppf "> found empty subconfigs")
                (array/push params arg)
                (inc i))
 
              (do
+               (ppf "> default cond clause")
                (def help? (= "help" arg))
                (def subcommand (if help? (get args (inc i)) arg))
+
+               (ppf "subcommand: %p" subcommand)
                (def subconfig (get-subconfig subconfigs subcommand))
+               (ppf "subconfig: %p" subconfig)
                (if subcommand
                  (if subconfig
                    (if (not help?)
                      (with-dyns [:args (array/slice args i)]
+                       (ppf ">>> recursively calling parse-args: %p %p"
+                            (string command " " subcommand) subconfig)
                        (def subresult (parse-args (string command " " subcommand) subconfig))
+                       (array/pop stack)
+                       (ppf "subresult: %p" subresult)
                        (unless (or (subresult :error?) (subresult :help?))
                          (put subresult :cmd subcommand)
+                         (ppf "subresult: %p" subresult)
                          (put result :sub subresult)
+                         (ppf "result: %p" result)
                          (break)))
                      (do
                        (set command (string command " " subcommand))
+                       (ppf "command: %p" command)
                        (usage subconfig)))
                    (usage-error "unrecognized subcommand '" subcommand "'"))
                  (usage-error "no subcommand specified after 'help'")))))
     (when (nil? i)
       (break)))
 
+  (ppf "params: %p" params)
+  (ppf "errored?: %p" errored?)
+  (ppf "helped?: %p" helped?)
+
   (unless (or errored? helped?)
     (def num-params (length params))
+    (ppf "num-params: %p" num-params)
     (var i 0)
     (def num-rules (length prules))
+    (ppf "num-rules: %p" num-rules)
     (var j 0)
     (while (< i num-params)
       (def prule (get prules j))
+      (ppf "result: %p" result)
+      (ppf "prule: %p" prule)
+      (ppf "params: %p" params)
+      (ppf "i: %d rem: %d" i (- num-rules j i))
+      (ppf "calling consume-param")
       (set i (consume-param result prule params i (- num-rules j 1)))
       (++ j))
     (while (< j num-rules)
@@ -699,4 +765,16 @@
         (put-in result [:params name] (rule :default)))
       (++ j)))
 
-  (merge-into result {:error? errored? :help? helped?}))
+  (ppf "result: %p" result)
+
+  (def ret
+    (merge-into result {:error? errored? :help? helped?}))
+
+  (ppf "[output]: %p" ret)
+
+  (ppf ">>> exiting parse-args")
+
+  (when (one? (length stack))
+    (array/pop stack))
+
+  ret)
